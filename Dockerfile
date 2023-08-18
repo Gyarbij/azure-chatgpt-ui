@@ -1,40 +1,29 @@
+# Use a single base image for consistency
 FROM node:18-alpine AS base
 
-FROM base AS deps
-
-RUN apk add --no-cache libc6-compat
-
+# Set the working directory
 WORKDIR /app
 
-COPY package.json yarn.lock ./
+# Install necessary dependencies
+RUN apk add --no-cache libc6-compat git
 
+# Copy package files and install dependencies
+COPY package.json yarn.lock ./
 RUN yarn install
 
-FROM base AS builder
-
-RUN apk update && apk add --no-cache git
-
+# Set environment variables
 ENV OPENAI_API_KEY=""
 ENV CODE=""
 ARG DOCKER=true
 
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Copy the rest of the application files
 COPY . .
 
+# Build the application
 RUN yarn build
 
-FROM base AS runner
-WORKDIR /app
-
-ENV OPENAI_API_KEY=""
-ENV CODE=""
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/.next/server ./.next/server
-
+# Expose the port the app runs on
 EXPOSE 3000
 
-CMD ["node","server.js"]
+# Command to run the application
+CMD ["node", "server.js"]
